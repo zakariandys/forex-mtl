@@ -1,0 +1,46 @@
+# IntelliJ IDEA specific
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+target/
+classes/
+
+# Scala specific
+*.class
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+
+# sbt specific
+project/target/
+project/project/
+.cache/
+.history/
+lib_managed/
+src_managed/
+dist/
+target/
+boot/
+build/
+.idea_modules/
+.idea/
+logs/
+bin/
+lib/
+.bsp
+
+# Eclipse specific
+.metadata
+bin/
+tmp/
+
+# Mac specific
+.DS_Store
+
+# OS Specific
+Thumbs.db
