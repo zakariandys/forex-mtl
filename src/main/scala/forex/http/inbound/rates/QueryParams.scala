@@ -1,4 +1,4 @@
-package forex.http.rates
+package forex.http.inbound.rates
 
 import forex.domain.Currency
 import org.http4s.QueryParamDecoder

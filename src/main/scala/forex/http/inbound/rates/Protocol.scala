@@ -1,5 +1,5 @@
 package forex.http
-package rates
+package inbound.rates
 
 import forex.domain.Currency.show
 import forex.domain.Rate.Pair
