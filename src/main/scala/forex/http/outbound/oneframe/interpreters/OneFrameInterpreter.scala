@@ -1,4 +1,4 @@
-package forex.http.outbound.oneframe
+package forex.http.outbound.oneframe.interpreters
 
 import cats.effect.Async
 import cats.implicits.{catsSyntaxApplicativeError, toFunctorOps}
@@ -6,14 +6,15 @@ import forex.config.OneFrameClientConfig
 import forex.domain.Rate
 import forex.http.outbound.oneframe.OneFrameErrors.OneFrameError.{BadRequest, DecodeParsingError, InternalServerError, UnknownSystemError}
 import forex.http.outbound.oneframe.Protocol.RateResponse
+import forex.http.outbound.oneframe.{Algebra, OneFrameErrors}
 import org.http4s.Method.GET
-import org.http4s.{Header, Query, Request, Status, Uri}
-import org.http4s.client.Client
-import org.typelevel.ci.CIString
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
+import org.http4s.client.Client
+import org.http4s._
+import org.typelevel.ci.CIString
 
-class OneFrameClient[F[_]: Async](httpClient: Client[F],
-                                  config: OneFrameClientConfig)
+class OneFrameInterpreter[F[_]: Async](httpClient: Client[F],
+                                       config: OneFrameClientConfig)
   extends Algebra[F] {
 
   /**

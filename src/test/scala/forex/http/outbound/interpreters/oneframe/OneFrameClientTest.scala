@@ -1,9 +1,11 @@
-package forex.http.outbound.oneframe
+package forex.http.outbound.interpreters.oneframe
 
 import cats.effect.{IO, Resource}
 import forex.config.OneFrameClientConfig
 import forex.domain.{Currency, Price, Rate, Timestamp}
+import forex.http.outbound.oneframe.OneFrameErrors
 import forex.http.outbound.oneframe.Protocol.RateResponse
+import forex.http.outbound.oneframe.interpreters.OneFrameInterpreter
 import org.http4s.client.Client
 import org.http4s.{Request, Response, Status}
 import org.mockito.ArgumentMatchers.any
@@ -25,7 +27,7 @@ class OneFrameClientTest extends AnyFunSuiteLike with Matchers with MockitoSugar
     token = "some-token"
   )
 
-  val oneFrameClient = new OneFrameClient[IO](mockHttpClient, config)
+  val oneFrameClient = new OneFrameInterpreter[IO](mockHttpClient, config)
 
   test("OneFrameClient should fetch rates successfully when the API returns a valid response") {
     val mockRateResponse = """[{"from":"USD","to":"EUR","bid":1.2,"ask":1.3,"price":1.25,"time_stamp":"2024-08-05T06:40:37.613Z"}]"""
