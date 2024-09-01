@@ -1,9 +1,10 @@
 package forex.services.rates.interpreters
 
-import cats.effect.{Concurrent, Timer}
-import cats.implicits.toFunctorOps
-import forex.config.CacheConfig
+import cats.effect.{Concurrent, Sync, Timer}
+import cats.syntax.flatMap._
+import forex.config.SchedulerConfig
 import forex.domain.{Currency, Rate}
+import forex.http.outbound.oneframe.OneFrameErrors
 import forex.http.outbound.oneframe.Protocol.RateResponse
 import forex.services.OneFrameService
 import forex.services.cache.Cache
@@ -21,18 +22,38 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
  *
  * @param client  The OneFrameService used to fetch rates.
  * @param cache   The cache used to store fetched rates.
- * @param config  The cache configuration, including the fetch interval.
+ * @param config  The scheduler configuration, including the fetch interval.
  * @tparam F      The effect type
  */
 class LiveRateServiceInterpreter[F[_]: Concurrent: Timer](client: OneFrameService[F],
                                                           cache: Cache[String, String],
-                                                          config: CacheConfig) extends LiveServiceAlgebra[F] {
+                                                          config: SchedulerConfig) extends LiveServiceAlgebra[F] {
 
-  private val fetchInterval: FiniteDuration = config.timeToLeaveInMinutes.seconds
+  private final val TIME_OF_INTERVAL: FiniteDuration = config.intervalInMinutes.seconds
 
+
+  /**
+   * This stream is used for setting up a scheduled task that runs at a fixed interval.
+   *
+   * @return A `Stream[F, Unit]`
+   */
   def stream: Stream[F, Unit] = {
-    Stream.awakeEvery[F](fetchInterval)
+    Stream.awakeEvery[F](TIME_OF_INTERVAL)
       .evalMap(_ => fetchAndProcessRates())
+  }
+
+  /**
+   * Fetches currency rates from the OneFrameService, processes them, and stores them in the cache.
+   *
+   * @return F[Unit]
+   */
+  override def fetchAndProcessRates(): F[Unit] = {
+    fetchRatesFromClient().flatMap {
+      case Right(rates: List[RateResponse]) =>
+        Sync[F].fromEither(putCache(rates))
+      case Left(error: OneFrameErrors.OneFrameError) =>
+        handleError(error)
+    }
   }
 
   object RateConverter {
@@ -45,37 +66,26 @@ class LiveRateServiceInterpreter[F[_]: Concurrent: Timer](client: OneFrameServic
     }
   }
 
+  private def fetchRatesFromClient(): F[Either[OneFrameErrors.OneFrameError, List[RateResponse]]] = {
+    client.fetchRates(Currency.pairOfCurrencies)
+  }
 
-  /**
-   * Fetches currency rates from the OneFrameService, processes them, and stores them in the cache.
-   *
-   * @return F[Unit]
-   */
-  override def fetchAndProcessRates(): F[Unit] = {
-    // todo: use combination generator or use configurable pairs
-    val pairs: Seq[Rate.Pair] = Seq(
-      Rate.Pair(Currency.USD, Currency.EUR),
-      Rate.Pair(Currency.USD, Currency.JPY),
-      Rate.Pair(Currency.EUR, Currency.GBP),
-      Rate.Pair(Currency.AUD, Currency.CAD),
-      Rate.Pair(Currency.CHF, Currency.NZD)
-    )
+  private def putCache(rates: List[RateResponse]): Either[OneFrameErrors.OneFrameError, Unit] = {
+    try {
+      rates.foreach { rate =>
+        val cacheKey = s"${rate.from}${rate.to}"
+        val cacheValue = RateConverter.fromRateResponse(rate)
+        cache.put(cacheKey, cacheValue.asJson.noSpaces, None)
+      }
+      Right(())
+    } catch {
+      case ex: Exception => Left(OneFrameErrors.OneFrameError.UnknownSystemError(s"Failed to put rates into cache: ${ex.getMessage}"))
+    }
+  }
 
-    //todo: refine the implementation, and use log for debug
-    client.fetchRates(pairs).map {
-      case Right(rates) =>
-        rates.foreach{rate =>
-          val cacheKey = s"${rate.from}${rate.to}"
-          val rateObj = RateConverter.fromRateResponse(rate)
-          cache.put(cacheKey, rateObj.asJson.noSpaces, null)
-
-          cache.get(cacheKey)
-          println(cache.get(cacheKey))
-        }
-
-        println(s"Fetched rates: $rates")
-      case Left(error) =>
-        println(s"Error fetching rates: $error")
+  private def handleError(error: OneFrameErrors.OneFrameError): F[Unit] = {
+    Sync[F].pure {
+      println(s"An error occurred: ${error.getMessage}") // todo: use logger instead
     }
   }
 

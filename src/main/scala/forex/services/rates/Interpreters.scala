@@ -1,7 +1,7 @@
 package forex.services.rates
 
 import cats.effect.{Concurrent, Sync, Timer}
-import forex.config.CacheConfig
+import forex.config.{CacheConfig, SchedulerConfig}
 import forex.http.outbound.oneframe.Algebra
 import forex.services.cache.Cache
 import forex.services.rates.interpreters.{LiveRateServiceInterpreter, RateServiceInterpreter}
@@ -12,6 +12,6 @@ object Interpreters {
 
   def live[F[_]: Concurrent: Timer](client: Algebra[F],
                                     cache: Cache[String, String],
-                                    config: CacheConfig): LiveRateServiceInterpreter[F] =
+                                    config: SchedulerConfig): LiveRateServiceInterpreter[F] =
     new LiveRateServiceInterpreter[F](client, cache, config)
 }
