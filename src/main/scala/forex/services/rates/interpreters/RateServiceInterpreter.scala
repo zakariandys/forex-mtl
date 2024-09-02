@@ -21,30 +21,35 @@ import java.time.{Duration, OffsetDateTime, ZoneOffset}
 class RateServiceInterpreter[F[_] : Sync](cache: Cache[String, String], config: CacheConfig)
   extends ServiceAlgebra[F]{
 
-  //todo: refine the implementation
-  //todo: enrich error handling
+  /**
+   * Retrieves the exchange rate for the given currency pair from the cache.
+   *
+   * @param pair The currency pair to look up.
+   * @return An effect `F` that produces either a `Right` with the `Rate` or a `Left` with a `ServiceError`.
+   */
   override def get(pair: Rate.Pair): F[Either[errors.ServiceError, Rate]] = {
     val cacheKey = s"${pair.from}${pair.to}"
-    println(cacheKey)
-    println(cache.get(cacheKey))
-
     cache.get(cacheKey) match {
-      case Some(cachedRateJson) =>
-        decode[Rate](cachedRateJson) match {
-          case Right(cachedRate) =>
-            val offsetDateTime = cachedRate.timestamp.value.atZoneSameInstant(ZoneOffset.UTC)
-            val now = OffsetDateTime.now(ZoneOffset.UTC)
-            if (Duration.between(offsetDateTime, now).toMinutes <= config.timeToLeaveInMinutes) {
-              Sync[F].pure(Right(cachedRate))
-            } else {
-              Sync[F].pure(Left(errors.ServiceError.RateOutdatedError("Cached rate is outdated.")))
-            }
-          case Left(_) =>
-            Sync[F].pure(Left(errors.ServiceError.RateParseError("Failed to parse cached rate JSON.")))
-        }
+      case Some(cachedRateJson) => processCachedRate(cachedRateJson)
+      case None                 => Sync[F].pure(Left(errors.ServiceError.RateNotFoundError("Rate not found in cache.")))
+    }
+  }
 
-      case None =>
-        Sync[F].pure(Left(errors.ServiceError.RateNotFoundError("Rate not found in cache.")))
+  private def processCachedRate(cachedRateJson: String): F[Either[errors.ServiceError, Rate]] = {
+    decode[Rate](cachedRateJson) match {
+      case Right(cachedRate) => validateCachedRate(cachedRate)
+      case Left(_)           => Sync[F].pure(Left(errors.ServiceError.RateParseError("Failed to parse cached rate.")))
+    }
+  }
+
+  private def validateCachedRate(cachedRate: Rate): F[Either[errors.ServiceError, Rate]] = {
+    val offsetDateTime = cachedRate.timestamp.value.atZoneSameInstant(ZoneOffset.UTC)
+    val now = OffsetDateTime.now(ZoneOffset.UTC)
+
+    if (Duration.between(offsetDateTime, now).toMinutes <= config.timeToLeaveInMinutes) {
+      Sync[F].pure(Right(cachedRate))
+    } else {
+      Sync[F].pure(Left(errors.ServiceError.RateOutdatedError("Cached rate is outdated.")))
     }
   }
 }
