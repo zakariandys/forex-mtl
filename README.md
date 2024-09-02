@@ -63,7 +63,7 @@ This project provides a service for fetching and caching forex rates using a sch
 
 4. Invoke the forex service
     ```bash
-    curl 'http://127.0.0.1:9000/rates?from=USD&to=EUR'
+    curl 'http://127.0.0.1:8081/rates?from=USD&to=EUR'
     ```
 
 ### Running Tests
