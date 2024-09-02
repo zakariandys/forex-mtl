@@ -2,8 +2,6 @@ package forex.services.cache.interpreters
 
 import com.github.blemale.scaffeine.{Scaffeine, Cache => ScaffeineCache}
 import forex.services.cache.Cache
-
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
 /**
@@ -16,7 +14,6 @@ import scala.concurrent.duration._
 class MemCacheInterpreter[F[_], K, V] extends Cache[K, V]{
 
   private val cache: ScaffeineCache[K, V] = Scaffeine()
-    .expireAfterWrite(Duration.apply(10, TimeUnit.MINUTES)) // todo: fetch TTL from config
     .build[K, V]()
 
   /**
@@ -27,7 +24,6 @@ class MemCacheInterpreter[F[_], K, V] extends Cache[K, V]{
    */
   override def get(key: K): Option[V] = cache.getIfPresent(key)
 
-  //todo:handle error when put. such as NPE, illegal exception etc.
   /**
    * Associates the specified value with the specified key in the cache.
    * If the cache previously contained a mapping for the key, the old value is replaced by the specified value.
