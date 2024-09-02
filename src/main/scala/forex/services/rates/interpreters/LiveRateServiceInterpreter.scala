@@ -1,6 +1,6 @@
 package forex.services.rates.interpreters
 
-import cats.effect.{Concurrent, Sync, Timer}
+import cats.effect.{Async, Concurrent, Sync, Timer}
 import cats.syntax.flatMap._
 import forex.config.SchedulerConfig
 import forex.domain.{Currency, Rate}
@@ -29,7 +29,7 @@ class LiveRateServiceInterpreter[F[_]: Concurrent: Timer](client: OneFrameServic
                                                           cache: Cache[String, String],
                                                           config: SchedulerConfig) extends LiveServiceAlgebra[F] {
 
-  private final val TIME_OF_INTERVAL: FiniteDuration = config.intervalInMinutes.seconds
+  private final val TIME_OF_INTERVAL: FiniteDuration = config.intervalInMinutes.minutes
 
 
   /**
@@ -84,7 +84,7 @@ class LiveRateServiceInterpreter[F[_]: Concurrent: Timer](client: OneFrameServic
   }
 
   private def handleError(error: OneFrameErrors.OneFrameError): F[Unit] = {
-    Sync[F].pure {
+    Async[F].pure {
       println(s"An error occurred: ${error.getMessage}") // todo: use logger instead
     }
   }
