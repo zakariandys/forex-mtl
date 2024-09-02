@@ -1,6 +1,7 @@
 package forex.services.rates.interpreters
 
 import cats.effect.{Async, Concurrent, Sync, Timer}
+import cats.implicits.catsSyntaxApplicativeError
 import cats.syntax.flatMap._
 import forex.config.SchedulerConfig
 import forex.domain.{Currency, Rate}
@@ -51,6 +52,9 @@ class LiveRateServiceInterpreter[F[_]: Concurrent: Timer](client: OneFrameServic
     fetchRatesFromClient().flatMap {
       case Right(rates: List[RateResponse]) =>
         Sync[F].fromEither(putCache(rates))
+          .handleErrorWith { e =>
+            handleError(OneFrameErrors.OneFrameError.InternalServerError(s"Failed put to cache: ${e.getMessage}"))
+        }
       case Left(error: OneFrameErrors.OneFrameError) =>
         handleError(error)
     }
