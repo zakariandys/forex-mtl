@@ -1,8 +1,8 @@
 package forex.http.outbound.oneframe
 
 import forex.domain.{Currency, Price, Timestamp}
-import io.circe.{Decoder, HCursor}
 import io.circe.generic.extras.Configuration
+import io.circe.{Decoder, HCursor}
 
 
 object Protocol {
@@ -16,14 +16,23 @@ object Protocol {
                                  timestamp: Timestamp
                                )
 
+  final case class ErrorRateResponse(
+      error: String
+  )
+
   implicit val currencyDecoder: Decoder[Currency] = Decoder.decodeString.emap { str =>
     Currency.fromString(str) match {
-      case currency: Currency => Right(currency)
-      case _ => Left(s"Invalid currency code: $str")
+      case Some(currency: Currency) => Right(currency)
+      case None => Left(s"Invalid currency: $str")
     }
   }
 
   implicit val priceDecoder: Decoder[Price] = Decoder.decodeBigDecimal.map(Price.apply)
+
+  implicit val errorRateResponseDecoder: Decoder[ErrorRateResponse] = (c: HCursor) =>
+    for {
+      errormessage <- c.downField("error").as[String]
+    } yield ErrorRateResponse(errormessage)
 
   implicit val timestampDecoder: Decoder[Timestamp] = Decoder.decodeOffsetDateTime.map(Timestamp(_))
 
