@@ -37,15 +37,16 @@ class LiveRateServiceInterpreterTest[F[_]] extends AnyFunSuiteLike with Matchers
   }
 
   test("fetchAndProcessRates should successfully fetch rates and store them in the cache") {
+    // Arrange
     val mockedRateResponse = RateResponse(Currency.USD, Currency.EUR, Price(1.2), Price(1.3), Price(1.25), Timestamp.now)
     val mockedRateResponses = List(mockedRateResponse)
 
+    // Act
     when(mockOneFrameService.fetchRates(any[Seq[Rate.Pair]])).thenReturn(IO.pure(Right(mockedRateResponses)))
     val liveRateService = new LiveRateServiceInterpreter[IO](mockOneFrameService, mockCache, zeroMinuteSchedulerConfig)
-
     liveRateService.fetchAndProcessRates().unsafeRunSync()
 
-    // Ensure put to cache is performed
+    // Verify: Ensure put to cache is performed
     val expectedCacheKey = s"${mockedRateResponse.from}${mockedRateResponse.to}"
     val expectedCacheValue = Rate(
       Rate.Pair(mockedRateResponse.from, mockedRateResponse.to),
@@ -61,13 +62,16 @@ class LiveRateServiceInterpreterTest[F[_]] extends AnyFunSuiteLike with Matchers
   }
 
   test("stream should fetch and process rates at regular intervals") {
+    // Arrange
     val mockedRateResponse = RateResponse(Currency.USD, Currency.EUR, Price(1.2), Price(1.3), Price(1.25), Timestamp.now)
     val mockedRateResponses = List(mockedRateResponse)
 
+    // Act
     when(mockOneFrameService.fetchRates(any[Seq[Rate.Pair]])).thenReturn(IO.pure(Right(mockedRateResponses)))
     val liveRateService = new LiveRateServiceInterpreter[IO](mockOneFrameService, mockCache, zeroMinuteSchedulerConfig)
     liveRateService.stream.take(1).compile.drain.unsafeRunSync()
 
+    // Verify
     verify(mockOneFrameService).fetchRates(any[Seq[Rate.Pair]])
 
     val expectedCacheKey = s"${mockedRateResponse.from}${mockedRateResponse.to}"
@@ -100,8 +104,10 @@ class LiveRateServiceInterpreterTest[F[_]] extends AnyFunSuiteLike with Matchers
   }
 
   test("fetchAndProcessRates should never performed put to cache") {
+    // Arrange
     val clientError = OneFrameErrors.OneFrameError.InternalServerError("Client error")
 
+    // Act
     when(mockOneFrameService.fetchRates(any[Seq[Rate.Pair]])).thenReturn(IO.pure(Left(clientError)))
     val liveRateService = new LiveRateServiceInterpreter[IO](mockOneFrameService, mockCache, zeroMinuteSchedulerConfig)
     liveRateService.fetchAndProcessRates().unsafeRunSync()
@@ -111,9 +117,11 @@ class LiveRateServiceInterpreterTest[F[_]] extends AnyFunSuiteLike with Matchers
   }
 
   test("putCache should return an error if an exception occurs during caching") {
+    // Arrange
     val mockedRateResponse = RateResponse(Currency.USD, Currency.EUR, Price(1.2), Price(1.3), Price(1.25), Timestamp.now)
     val mockedRateResponses = List(mockedRateResponse)
 
+    // Act
     when(mockOneFrameService.fetchRates(any[Seq[Rate.Pair]])).thenReturn(IO.pure(Right(mockedRateResponses)))
     when(mockCache.put(any[String], any[String], any[Option[FiniteDuration]])).thenThrow(new RuntimeException())
     val liveRateService = new LiveRateServiceInterpreter[IO](mockOneFrameService, mockCache, zeroMinuteSchedulerConfig)

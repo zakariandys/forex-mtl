@@ -58,7 +58,7 @@ class OneFrameInterpreter[F[_]: Async](httpClient: Client[F],
       case Right(_) =>
         Async[F].pure(Left(DecodeParsingError(s"Unknown error response")))
       case Left(_) =>
-        Async[F].pure(Left(DecodeParsingError("Failed to parse response.")))
+        Async[F].pure(Left(DecodeParsingError("Failed to parsing response.")))
     }
   }
 
